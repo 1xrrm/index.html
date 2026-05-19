@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Heart Landing - Fixed Geometry</title>
+    <title>Heart Landing - Mobile Fixed</title>
     <style>
         * { box-sizing: border-box; }
         body {
@@ -20,16 +20,17 @@
         .overlay {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             text-align: center; z-index: 10; color: #ff4d6d; transition: opacity 0.5s ease;
+            width: 90%;
         }
-        .system-msg { font-size: 14px; margin-bottom: 20px; text-shadow: 0 0 5px rgba(255, 77, 109, 0.5); line-height: 1.6; }
+        .system-msg { font-size: 13px; margin-bottom: 20px; text-shadow: 0 0 5px rgba(255, 77, 109, 0.5); line-height: 1.6; }
         .btn-decrypt {
             background: transparent; border: 1px solid #ff4d6d; color: #ff4d6d;
-            padding: 12px 24px; font-size: 12px; text-transform: uppercase; letter-spacing: 2px;
+            padding: 12px 24px; font-size: 11px; text-transform: uppercase; letter-spacing: 2px;
             cursor: pointer; font-family: inherit; box-shadow: 0 0 10px rgba(255, 77, 109, 0.2);
             transition: all 0.3s ease;
         }
         .btn-decrypt:hover { background: #ff4d6d; color: #111; box-shadow: 0 0 20px rgba(255, 77, 109, 0.6); }
-        .hint { margin-top: 15px; font-size: 11px; color: #666; }
+        .hint { margin-top: 15px; font-size: 10px; color: #666; }
     </style>
 </head>
 <body>
@@ -37,9 +38,9 @@
     <div class="terminal-container">
         <div class="screen" id="screen">
             <div class="overlay" id="overlay">
-                <div class="system-msg">[system] Initializing heart.PROTOCOL_v6.2...<br>[status] Web Audio Core Stream Synced.</div>
+                <div class="system-msg">[system] Initializing heart.PROTOCOL_v6.2...<br>[status] Mobile Responsive Core Synced.</div>
                 <button class="btn-decrypt" id="decryptBtn">🔓 Decrypt & Run</button>
-                <div class="hint">(Safe to run directly from Desktop)</div>
+                <div class="hint">(Tap anywhere to launch if button misses)</div>
             </div>
             <canvas id="heartCanvas"></canvas>
         </div>
@@ -75,15 +76,25 @@
         class Particle {
             constructor(angle) {
                 this.angle = angle;
-                this.x = width / 2 + (Math.random() - 0.5) * 60;
-                this.y = height / 2 + (Math.random() - 0.5) * 60;
+                
+                // Detect if mobile layout is active
+                const isMobile = width < 768;
+                
+                // Tighten cluster center on mobile screens
+                const spawnRange = isMobile ? 25 : 60;
+                this.x = width / 2 + (Math.random() - 0.5) * spawnRange;
+                this.y = height / 2 + (Math.random() - 0.5) * spawnRange;
                 
                 this.speed = 0.02 + Math.random() * 0.03; 
                 this.text = Math.random() > 0.3 ? "I love you Manor" : "i l@ve y0u M@n0r";
-                this.fontSize = Math.floor(Math.random() * 4) + 11; 
                 
-                this.offsetX = (Math.random() - 0.5) * 60;
-                this.offsetY = (Math.random() - 0.5) * 60;
+                // Shrink text sizes slightly on mobile so they don't mash together
+                this.fontSize = isMobile ? (Math.floor(Math.random() * 3) + 8) : (Math.floor(Math.random() * 4) + 11); 
+                
+                // Prevent extreme text offsets on tiny displays
+                const offsetRange = isMobile ? 25 : 60;
+                this.offsetX = (Math.random() - 0.5) * offsetRange;
+                this.offsetY = (Math.random() - 0.5) * offsetRange;
                 
                 this.delay = Math.random() * 80; 
                 this.age = 0;
@@ -100,15 +111,17 @@
                     return;
                 }
 
-                // FIXED: Correct mathematical formula for the parametric heart curve coordinates
                 const sin3 = Math.pow(Math.sin(this.angle), 3);
                 const cosCoords = 13 * Math.cos(this.angle) - 5 * Math.cos(2 * this.angle) - 2 * Math.cos(3 * this.angle) - Math.cos(4 * this.angle);
                 
-                const baseScale = Math.min(width, height) / 45; 
+                // Responsive base constraints for calculation scaling
+                const isMobile = width < 768;
+                const baseScale = isMobile ? (Math.min(width, height) / 38) : (Math.min(width, height) / 45); 
                 const currentScale = baseScale * pulseScale;
 
                 const targetX = width / 2 + (16 * sin3) * currentScale + this.offsetX;
-                const targetY = height / 2 - (cosCoords) * currentScale + this.offsetY;
+                // Pushes the center point slightly upward on phones to leave breathing room
+                const targetY = (height / 2 + (isMobile ? -20 : 0)) - (cosCoords) * currentScale + this.offsetY;
 
                 this.x += (targetX - this.x) * this.speed;
                 this.y += (targetY - this.y) * this.speed;
@@ -118,7 +131,7 @@
                 if (!beatDropped || this.age < this.delay) return;
                 ctx.fillStyle = this.color;
                 ctx.font = `bold ${this.fontSize}px 'Courier New', monospace`;
-                ctx.shadowBlur = 8;
+                ctx.shadowBlur = width < 768 ? 4 : 8; // Drop glowing blur on mobile performance layers
                 ctx.shadowColor = this.color;
                 ctx.fillText(this.text, this.x, this.y);
             }
@@ -197,8 +210,8 @@
                 });
             } else {
                 ctx.fillStyle = '#ff4d6d';
-                ctx.font = "13px 'Courier New', monospace";
-                ctx.fillText("[system] buffering exact audio matrix tracks...", width / 2 - 170, height / 2);
+                ctx.font = "12px 'Courier New', monospace";
+                ctx.fillText("[system] buffering audio matrix tracks...", width / 2 - 140, height / 2);
             }
 
             requestAnimationFrame(animate);
