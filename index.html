@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Heart Landing - Fixed Geometry</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0; padding: 0;
+            background-color: #0b090a;
+            overflow: hidden;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh;
+            font-family: 'Courier New', Courier, monospace;
+        }
+        .terminal-container { width: 100vw; height: 100vh; display: flex; flex-direction: column; position: relative; }
+        .screen { flex: 1; position: relative; background: #0b090a; overflow: hidden; cursor: pointer; }
+        canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+        .overlay {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            text-align: center; z-index: 10; color: #ff4d6d; transition: opacity 0.5s ease;
+        }
+        .system-msg { font-size: 14px; margin-bottom: 20px; text-shadow: 0 0 5px rgba(255, 77, 109, 0.5); line-height: 1.6; }
+        .btn-decrypt {
+            background: transparent; border: 1px solid #ff4d6d; color: #ff4d6d;
+            padding: 12px 24px; font-size: 12px; text-transform: uppercase; letter-spacing: 2px;
+            cursor: pointer; font-family: inherit; box-shadow: 0 0 10px rgba(255, 77, 109, 0.2);
+            transition: all 0.3s ease;
+        }
+        .btn-decrypt:hover { background: #ff4d6d; color: #111; box-shadow: 0 0 20px rgba(255, 77, 109, 0.6); }
+        .hint { margin-top: 15px; font-size: 11px; color: #666; }
+    </style>
+</head>
+<body>
+
+    <div class="terminal-container">
+        <div class="screen" id="screen">
+            <div class="overlay" id="overlay">
+                <div class="system-msg">[system] Initializing heart.PROTOCOL_v6.2...<br>[status] Web Audio Core Stream Synced.</div>
+                <button class="btn-decrypt" id="decryptBtn">🔓 Decrypt & Run</button>
+                <div class="hint">(Safe to run directly from Desktop)</div>
+            </div>
+            <canvas id="heartCanvas"></canvas>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('heartCanvas');
+        const ctx = canvas.getContext('2d');
+        const screen = document.getElementById('screen');
+        const overlay = document.getElementById('overlay');
+        const decryptBtn = document.getElementById('decryptBtn');
+
+        const AUDIO_URL = "https://pub-c5e31b5cdafb419a86a69d5d340a9ade.r2.dev/Massive_Attack_-_Angel.mp3";
+
+        let width = canvas.width = screen.offsetWidth;
+        let height = canvas.height = screen.offsetHeight;
+
+        window.addEventListener('resize', () => {
+            width = canvas.width = screen.offsetWidth;
+            height = canvas.height = screen.offsetHeight;
+        });
+
+        let particles = [];
+        let isRunning = false;
+        let pulseTime = 0;
+        let beatDropped = false;
+        
+        let audioCtx;
+        let audioBuffer = null;
+        let audioSourceNode = null;
+        let startTime = 0;
+
+        class Particle {
+            constructor(angle) {
+                this.angle = angle;
+                this.x = width / 2 + (Math.random() - 0.5) * 60;
+                this.y = height / 2 + (Math.random() - 0.5) * 60;
+                
+                this.speed = 0.02 + Math.random() * 0.03; 
+                this.text = Math.random() > 0.3 ? "I love you Manor" : "i l@ve y0u M@n0r";
+                this.fontSize = Math.floor(Math.random() * 4) + 11; 
+                
+                this.offsetX = (Math.random() - 0.5) * 60;
+                this.offsetY = (Math.random() - 0.5) * 60;
+                
+                this.delay = Math.random() * 80; 
+                this.age = 0;
+
+                const colors = ['#ff0a54', '#ff477e', '#ff7096', '#ff85a1', '#fbb1bd'];
+                this.color = colors[Math.floor(Math.random() * colors.length)];
+            }
+
+            update(pulseScale) {
+                if (!beatDropped) return;
+
+                if (this.age < this.delay) {
+                    this.age++;
+                    return;
+                }
+
+                // FIXED: Correct mathematical formula for the parametric heart curve coordinates
+                const sin3 = Math.pow(Math.sin(this.angle), 3);
+                const cosCoords = 13 * Math.cos(this.angle) - 5 * Math.cos(2 * this.angle) - 2 * Math.cos(3 * this.angle) - Math.cos(4 * this.angle);
+                
+                const baseScale = Math.min(width, height) / 45; 
+                const currentScale = baseScale * pulseScale;
+
+                const targetX = width / 2 + (16 * sin3) * currentScale + this.offsetX;
+                const targetY = height / 2 - (cosCoords) * currentScale + this.offsetY;
+
+                this.x += (targetX - this.x) * this.speed;
+                this.y += (targetY - this.y) * this.speed;
+            }
+
+            draw() {
+                if (!beatDropped || this.age < this.delay) return;
+                ctx.fillStyle = this.color;
+                ctx.font = `bold ${this.fontSize}px 'Courier New', monospace`;
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = this.color;
+                ctx.fillText(this.text, this.x, this.y);
+            }
+        }
+
+        async function loadAudioEngine() {
+            try {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const response = await fetch(AUDIO_URL);
+                const arrayBuffer = await response.arrayBuffer();
+                audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+                console.log("System Status: Audio waveform synchronized mapping.");
+            } catch (err) {
+                console.log("Audio network bypass failed. Using visual matrix loop.", err);
+                beatDropped = true; 
+            }
+        }
+
+        function playStreamedAudio() {
+            if (!audioCtx || !audioBuffer) {
+                beatDropped = true;
+                return;
+            }
+            
+            audioSourceNode = audioCtx.createBufferSource();
+            audioSourceNode.buffer = audioBuffer;
+            audioSourceNode.loop = true;
+
+            const gainNode = audioCtx.createGain();
+            gainNode.gain.setValueAtTime(0.6, audioCtx.currentTime);
+
+            audioSourceNode.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            audioSourceNode.start(0);
+            startTime = audioCtx.currentTime;
+        }
+
+        loadAudioEngine();
+
+        function initAnimation() {
+            if (isRunning) return;
+            isRunning = true;
+            
+            overlay.style.opacity = 0;
+            setTimeout(() => overlay.remove(), 400);
+
+            for (let angle = 0; angle < Math.PI * 2; angle += 0.015) {
+                particles.push(new Particle(angle));
+            }
+
+            playStreamedAudio();
+            animate();
+        }
+
+        function animate() {
+            ctx.fillStyle = 'rgba(11, 9, 10, 0.25)';
+            ctx.shadowBlur = 0; 
+            ctx.fillRect(0, 0, width, height);
+
+            if (!beatDropped) {
+                let elapsedTime = audioCtx ? audioCtx.currentTime - startTime : 0;
+                if (elapsedTime >= 0.75 || !audioBuffer) {
+                    beatDropped = true;
+                }
+            }
+
+            if (beatDropped) {
+                pulseTime += 0.045; 
+                const pulseFormula = Math.sin(pulseTime) * Math.sin(pulseTime * 0.5);
+                const currentPulseScale = 1 + (pulseFormula * 0.1); 
+
+                particles.forEach(p => {
+                    p.update(currentPulseScale);
+                    p.draw();
+                });
+            } else {
+                ctx.fillStyle = '#ff4d6d';
+                ctx.font = "13px 'Courier New', monospace";
+                ctx.fillText("[system] buffering exact audio matrix tracks...", width / 2 - 170, height / 2);
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        decryptBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            initAnimation();
+        });
+        screen.addEventListener('click', initAnimation);
+    </script>
+</body>
+</html>
